@@ -281,6 +281,8 @@ for idx in range(validation_size):
     mediansY = []
     medianSplit(arr_monte_carlo[idx], 5, mediansX)
     medianSplit(samples[:, idx].numpy(), 5, mediansY)
+    mediansX.sort()
+    mediansY.sort()
     mean_median_dist += relativeDistance(mediansX, mediansY)
 
 mean_median_dist /= validation_size
@@ -288,5 +290,5 @@ mean_median_dist /= validation_size
 print(f"The accuracy metric - average relative median distance = {mean_median_dist}")
 
 # BNN accuracy test 08/26/2023
-# (average median distances)    0.4285  0.4458  0.4724  0.4364  0.4424  0.4402  0.3952  0.4628
+# (average median distances)     0.3759  0.4310  0.4286  0.4239  0.4259  0.4634  0.4324  0.4530
   
