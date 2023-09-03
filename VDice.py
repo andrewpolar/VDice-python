@@ -147,8 +147,8 @@ def create_probablistic_bnn_model(train_size):
             make_prior_fn=prior,
             make_posterior_fn=posterior,
             kl_weight=1 / train_size,
-            activation="sigmoid"
-            #activation="relu"
+            #activation="sigmoid"
+            activation="relu"
         )(features)
     distribution_params = layers.Dense(units=6)(features)     
      
