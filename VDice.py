@@ -291,5 +291,5 @@ mean_median_dist /= validation_size
 print(f"The accuracy metric - average relative median distance = {mean_median_dist}")
 
 # BNN accuracy test 09/03/2023
-# (average median distances)     0.4723  0.6020  0.5841  0.5283  0.6144  0.6079  0.5985  0.6300
+# (average median distances)     0.3323  0.3233  0.4102  0.3786  0.3981  0.3066  0.4392  0.3224
   
