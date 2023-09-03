@@ -30,7 +30,7 @@ import matplotlib.pyplot as plt
 FEATURE_NAMES = ["x0", "x1", "x2"]
 dataset_size = 2100
 train_size = 2000
-hidden_units = [5, 5]
+hidden_units = [8, 8]
 learning_rate = 0.003
 batch_size = 256
 num_epochs = 600
@@ -206,8 +206,9 @@ def relativeDistance(X, Y):
         norm1 += X[i] * X[i]
         norm2 += Y[i] * Y[i]
     dist = math.sqrt(dist)
-    norm = max(norm1, norm2)
-    norm = math.sqrt(norm)
+    norm1 = math.sqrt(norm1)
+    norm2 = math.sqrt(norm2)
+    norm = (norm1 + norm2) / 2.0
     return dist/norm
 
 def medianSplit(x, depth, medians):
@@ -289,6 +290,6 @@ mean_median_dist /= validation_size
 
 print(f"The accuracy metric - average relative median distance = {mean_median_dist}")
 
-# BNN accuracy test 08/26/2023
-# (average median distances)     0.3759  0.4310  0.4286  0.4239  0.4259  0.4634  0.4324  0.4530
+# BNN accuracy test 09/03/2023
+# (average median distances)     0.4723  0.6020  0.5841  0.5283  0.6144  0.6079  0.5985  0.6300
   
