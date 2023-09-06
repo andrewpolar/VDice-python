@@ -34,8 +34,8 @@ hidden_units = [8, 8]
 learning_rate = 0.003
 batch_size = 256
 num_epochs = 600
-model_sample_size = 2048
-monte_carlo_sample_size = 2048
+model_sample_size = 4096
+monte_carlo_sample_size = 4096
 min_dice = 1
 max_dice = 11 #must be greater by 1 than expected maximum
 
@@ -60,22 +60,15 @@ def get_Sample(z0, z1, z2, N):
         sample[j] = get_output(z0, z1, z2)
     return sample
 
-def get_MonteCarlo(examples, validation_size):
+def get_MonteCarlo(examples):
     x0 = examples['x0'].numpy()
     x1 = examples['x1'].numpy()
     x2 = examples['x2'].numpy()
-    mean = np.empty(validation_size, dtype=float)
-    var = np.empty(validation_size, dtype=float)
     list = []
-    for i in range(validation_size):
+    for i in range(x0.size):
         sample = get_Sample(x0[i], x1[i], x2[i], monte_carlo_sample_size)
         list.append(sample)
-        mean[i] = sample.mean()
-        var[i] = 0.0
-        for j in range(monte_carlo_sample_size):
-            var[i] += (sample[j] - mean[i]) ** 2
-        var[i] /= monte_carlo_sample_size
-    return mean, var, list
+    return list
 
 def get_train_and_test_splits(dataset_size, train_size, batch_size=1):
     x0 = [] 
@@ -259,10 +252,10 @@ def BuildHistogram(data, bins, title):
 validation_size = dataset_size - train_size
 train_dataset, test_dataset = get_train_and_test_splits(dataset_size, train_size, batch_size)
 examples, targets = list(test_dataset.unbatch().shuffle(batch_size * 10).batch(validation_size))[0]
-mean_monte_carlo, var_monte_carlo, arr_monte_carlo = get_MonteCarlo(examples, validation_size)
 prob_bnn_model = create_probablistic_bnn_model(train_size)
 run_experiment(prob_bnn_model, negative_loglikelihood, train_dataset, test_dataset)
 prediction_distribution = prob_bnn_model(examples)
+arr_monte_carlo = get_MonteCarlo(examples)
 
 ########################################################################
 # at this point prediction is ready, further code is accuracy estimation
@@ -270,12 +263,7 @@ prediction_distribution = prob_bnn_model(examples)
 
 samples = prediction_distribution.sample(model_sample_size)
 
-#Histogram of the output for the record in the middle
-#bins = 16
-#x_mid = len(list(samples[0, :]))/2.0
-#BuildHistogram(arr_monte_carlo[int(x_mid)], bins, "Monte Carlo")
-#BuildHistogram(samples[:, int(x_mid)], bins, "Model")
-
+bins = 16
 mean_median_dist = 0.0
 for idx in range(validation_size):
     mediansX = []
@@ -285,6 +273,9 @@ for idx in range(validation_size):
     mediansX.sort()
     mediansY.sort()
     mean_median_dist += relativeDistance(mediansX, mediansY)
+    if (0 == idx % 17):
+        BuildHistogram(arr_monte_carlo[idx], bins, "Monte Carlo")
+        BuildHistogram(samples[:, idx], bins, "Model")
 
 mean_median_dist /= validation_size
 
@@ -292,4 +283,5 @@ print(f"The accuracy metric - average relative median distance = {mean_median_di
 
 # BNN accuracy test 09/03/2023
 # (average median distances)     0.3323  0.3233  0.4102  0.3786  0.3981  0.3066  0.4392  0.3224
+# the good numbers should be below 0.1
   
