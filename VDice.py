@@ -16,6 +16,8 @@ np.random.randint(min_dice, max_dice).
 Since data is programmatically generated, it is possible to compare predicted distributions of
 the targets to actual, which are used for assessment of the accuracy of suggested BNN approach.
 The accuracy metric is relative distance for two vectors of nested medians.
+
+The statistic used for accuracy metric is explained at http://www.ezcodesample.com/MTree.html
 """
 
 from re import T
