@@ -5,7 +5,7 @@ Date created: 2021/01/15
 Last modified: 2021/01/15
 Description: Building probabilistic Bayesian neural network models with TensorFlow Probability.
 
-Code modified by Andrew Polar: 2023/07/29, the dataset is replaced by mathematically generated, 
+Code modified by Andrew Polar: 2024/01/03, the dataset is replaced by one mathematically generated, 
 the inputs are generated in get_train_and_test_splits, the outputs are generated in get_output.
 
 The modeled system is two quantities of dice and probabilistic switch for choosing either of them.
@@ -31,9 +31,9 @@ FEATURE_NAMES = ["x0", "x1", "x2"]
 dataset_size = 2100
 train_size = 2000
 hidden_units = [8, 8]
-learning_rate = 0.003
+learning_rate = 0.001
 batch_size = 256
-num_epochs = 600
+num_epochs = 1000
 model_sample_size = 4096
 monte_carlo_sample_size = 4096
 min_dice = 1
@@ -45,12 +45,12 @@ def get_output(z0, z1, z2):
     rnd = np.random.randint(min_dice, max_dice)
     if (rnd <= z0):
         s = 0
-        for j in range(1, z1):
+        for j in range(0, z1):
             s += np.random.randint(min_dice, max_dice)
         return s
     else:
         s = 0
-        for j in range(1, z2):
+        for j in range(0, z2):
             s += np.random.randint(min_dice, max_dice)
         return s
 
@@ -229,22 +229,6 @@ def medianSplit(x, depth, medians):
     medianSplit(right, depth-1, medians)
     return
 
-def BuildHistogram(data, bins, title):
-    histogram = np.histogram(data, bins)
-    plt.subplots(figsize=(5, 2.4))
-    print(f'Histogram values')
-    print(histogram)
-    yy = list(histogram[0])
-    xx = list(histogram[1])
-    x2 = []
-    for i in range(bins): x2.append((xx[i] + xx[i + 1])/2.0)
-    plt.bar(x2, yy, width = (x2[bins-1] - x2[0])/24)
-    plt.title(title)
-    plt.xlabel("bins")
-    plt.ylabel("frequencies")
-    plt.show()
-    return
-
 #########################################################
 # code execution
 #########################################################
@@ -255,17 +239,25 @@ examples, targets = list(test_dataset.unbatch().shuffle(batch_size * 10).batch(v
 prob_bnn_model = create_probablistic_bnn_model(train_size)
 run_experiment(prob_bnn_model, negative_loglikelihood, train_dataset, test_dataset)
 prediction_distribution = prob_bnn_model(examples)
-arr_monte_carlo = get_MonteCarlo(examples)
 
 ########################################################################
 # at this point prediction is ready, further code is accuracy estimation
 ########################################################################
 
+arr_monte_carlo = get_MonteCarlo(examples)
+model_mean = prediction_distribution.mean().numpy().tolist()
+model_stdv = prediction_distribution.stddev().numpy().tolist()
+
+x0 = examples['x0'].numpy()
+x1 = examples['x1'].numpy()
+x2 = examples['x2'].numpy()
+
 samples = prediction_distribution.sample(model_sample_size)
 
-bins = 16
 mean_median_dist = 0.0
+print("The test sample: #, x0, x1, x2, y, mean_model, std_model, mean_MC, std_MC")
 for idx in range(validation_size):
+    print(f"{idx}, {x0[idx]}, {x1[idx]}, {x2[idx]}, {targets[idx]}, \t {round(model_mean[idx], 2)}, {round(model_stdv[idx], 2)}, {round(np.mean(arr_monte_carlo[idx]), 2)}, {round(np.std(arr_monte_carlo[idx]), 2)}")
     mediansX = []
     mediansY = []
     medianSplit(arr_monte_carlo[idx], 5, mediansX)
@@ -273,15 +265,9 @@ for idx in range(validation_size):
     mediansX.sort()
     mediansY.sort()
     mean_median_dist += relativeDistance(mediansX, mediansY)
-    if (0 == idx % 17):
-        BuildHistogram(arr_monte_carlo[idx], bins, "Monte Carlo")
-        BuildHistogram(samples[:, idx], bins, "Model")
 
 mean_median_dist /= validation_size
-
 print(f"The accuracy metric - average relative median distance = {mean_median_dist}")
 
-# BNN accuracy test 09/03/2023
-# (average median distances)     0.3323  0.3233  0.4102  0.3786  0.3981  0.3066  0.4392  0.3224
-# the good numbers should be below 0.1
+
   
