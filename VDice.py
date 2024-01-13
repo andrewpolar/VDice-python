@@ -16,8 +16,6 @@ np.random.randint(min_dice, max_dice).
 Since data is programmatically generated, it is possible to compare predicted distributions of
 the targets to actual, which are used for assessment of the accuracy of suggested BNN approach.
 The accuracy metric is relative distance for two vectors of nested medians.
-
-The statistic used for accuracy metric is explained at http://www.ezcodesample.com/MTree.html
 """
 
 from re import T
@@ -258,8 +256,16 @@ samples = prediction_distribution.sample(model_sample_size)
 
 mean_median_dist = 0.0
 print("The test sample: #, x0, x1, x2, y, mean_model, std_model, mean_MC, std_MC")
+MM = []
+MSTD = []
+MCM = []
+MCSTD = []
 for idx in range(validation_size):
-    print(f"{idx}, {x0[idx]}, {x1[idx]}, {x2[idx]}, {targets[idx]}, \t {round(model_mean[idx], 2)}, {round(model_stdv[idx], 2)}, {round(np.mean(arr_monte_carlo[idx]), 2)}, {round(np.std(arr_monte_carlo[idx]), 2)}")
+    MM.append(model_mean[idx]) 
+    MSTD.append(model_stdv[idx])
+    MCM.append(np.mean(arr_monte_carlo[idx]))
+    MCSTD.append(np.std(arr_monte_carlo[idx]))
+    print(f"{idx + 1}, {x0[idx]}, {x1[idx]}, {x2[idx]}, {targets[idx]}, \t {round(model_mean[idx], 2)}, {round(model_stdv[idx], 2)}, {round(np.mean(arr_monte_carlo[idx]), 2)}, {round(np.std(arr_monte_carlo[idx]), 2)}")
     mediansX = []
     mediansY = []
     medianSplit(arr_monte_carlo[idx], 5, mediansX)
@@ -270,6 +276,6 @@ for idx in range(validation_size):
 
 mean_median_dist /= validation_size
 print(f"The accuracy metric - average relative median distance = {mean_median_dist}")
-
-
+print(f"Relative distance for means {relativeDistance(MM, MCM)}")
+print(f"Relative distance for stds  {relativeDistance(MSTD, MCSTD)}")
   
