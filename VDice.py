@@ -11,11 +11,12 @@ the inputs are generated in get_train_and_test_splits, the outputs are generated
 The modeled system is two quantities of dice and probabilistic switch for choosing either of them.
 Number of dice is chosen as np.random.randint(min_number_of_dice, max_number_of_dice), then the 
 output is an outcome, which is a sum of a random roll. The probabilistic switch is generated as 
-np.random.randint(min_dice, max_dice). 
+np.random.randint(min_dice, max_dice) and then normalized to a fraction by division by range. 
 
 Since data is programmatically generated, it is possible to compare predicted distributions of
 the targets to actual, which are used for assessment of the accuracy of suggested BNN approach.
-The accuracy metric is relative distance for two vectors of nested medians.
+The accuracy metrics are relative distance for two vectors of nested medians,
+relative distances for means and standard deviations and Cramer von Mises tests.
 """
 
 from re import T
@@ -26,6 +27,7 @@ from keras import layers
 import tensorflow_probability as tfp
 import math
 import matplotlib.pyplot as plt
+from scipy import stats
 
 FEATURE_NAMES = ["x0", "x1", "x2"]
 dataset_size = 2100
@@ -34,7 +36,7 @@ hidden_units = [8, 8]
 learning_rate = 0.001
 batch_size = 256
 num_epochs = 1000
-model_sample_size = 4096
+model_sample_size = 50
 monte_carlo_sample_size = 4096
 min_dice = 1
 max_dice = 11 #must be greater by 1 than expected maximum
@@ -260,12 +262,15 @@ MM = []
 MSTD = []
 MCM = []
 MCSTD = []
+passedKVM = 0
 for idx in range(validation_size):
     MM.append(model_mean[idx]) 
     MSTD.append(model_stdv[idx])
     MCM.append(np.mean(arr_monte_carlo[idx]))
     MCSTD.append(np.std(arr_monte_carlo[idx]))
-    print(f"{idx + 1}, {x0[idx]}, {x1[idx]}, {x2[idx]}, {targets[idx]}, \t {round(model_mean[idx], 2)}, {round(model_stdv[idx], 2)}, {round(np.mean(arr_monte_carlo[idx]), 2)}, {round(np.std(arr_monte_carlo[idx]), 2)}")
+    printed_data = f"{idx + 1}, {x0[idx]}, {x1[idx]}, {x2[idx]}, {targets[idx]}, \t {round(model_mean[idx], 2)}, "
+    printed_data += f"{round(model_stdv[idx], 2)}, {round(np.mean(arr_monte_carlo[idx]), 2)}, {round(np.std(arr_monte_carlo[idx]), 2)}"
+    print(printed_data)
     mediansX = []
     mediansY = []
     medianSplit(arr_monte_carlo[idx], 5, mediansX)
@@ -273,9 +278,13 @@ for idx in range(validation_size):
     mediansX.sort()
     mediansY.sort()
     mean_median_dist += relativeDistance(mediansX, mediansY)
+    res = stats.cramervonmises_2samp(arr_monte_carlo[idx], samples[:, idx].numpy())
+    if (res.pvalue > 0.05): passedKVM += 1
+
 
 mean_median_dist /= validation_size
 print(f"The accuracy metric - average relative median distance = {mean_median_dist}")
 print(f"Relative distance for means {relativeDistance(MM, MCM)}")
 print(f"Relative distance for stds  {relativeDistance(MSTD, MCSTD)}")
+print(f"Passed Kramer fon Mises tests {passedKVM} from {validation_size}")
   
