@@ -5,18 +5,16 @@ Date created: 2021/01/15
 Last modified: 2021/01/15
 Description: Building probabilistic Bayesian neural network models with TensorFlow Probability.
 
-Code modified by Andrew Polar: 2024/01/03, the dataset is replaced by one mathematically generated, 
+Code modified by Andrew Polar: 2024/02/03, the dataset is replaced by one mathematically generated, 
 the inputs are generated in get_train_and_test_splits, the outputs are generated in get_output.
 
 The modeled system is two quantities of dice and probabilistic switch for choosing either of them.
 Number of dice is chosen as np.random.randint(min_number_of_dice, max_number_of_dice), then the 
 output is an outcome, which is a sum of a random roll. The probabilistic switch is generated as 
-np.random.randint(min_dice, max_dice) and then normalized to a fraction by division by range. 
+np.random.randint(min_dice, max_dice). 
 
 Since data is programmatically generated, it is possible to compare predicted distributions of
 the targets to actual, which are used for assessment of the accuracy of suggested BNN approach.
-The accuracy metrics are relative distance for two vectors of nested medians,
-relative distances for means and standard deviations and Cramer von Mises tests.
 """
 
 from re import T
@@ -27,7 +25,7 @@ from keras import layers
 import tensorflow_probability as tfp
 import math
 import matplotlib.pyplot as plt
-from scipy import stats
+import random
 
 FEATURE_NAMES = ["x0", "x1", "x2"]
 dataset_size = 2100
@@ -37,7 +35,7 @@ learning_rate = 0.001
 batch_size = 256
 num_epochs = 1000
 model_sample_size = 50
-monte_carlo_sample_size = 4096
+monte_carlo_sample_size = 4000
 min_dice = 1
 max_dice = 11 #must be greater by 1 than expected maximum
 
@@ -231,6 +229,64 @@ def medianSplit(x, depth, medians):
     medianSplit(right, depth-1, medians)
     return
 
+def CVM_T(x, y):
+    all = []
+    labels = []
+    for i in range(len(x)): 
+        all.append(x[i])
+        labels.append(-1.0)
+    for i in range(len(y)): 
+        all.append(y[i])
+        labels.append(1.0)
+    indexes = []
+    for i in range(len(all)): indexes.append(i)
+    indexes = [x for _, x in sorted(zip(all, indexes))]
+    UX = 0.0
+    UY = 0.0
+    cntx = 0
+    cnty = 0
+    for i in range(len(all)):
+        if labels[indexes[i]] < 0: 
+            UX += (i - cntx) * (i - cntx)
+            cntx += 1
+        else:
+            UY += (i - cnty) * (i - cnty)
+            cnty += 1
+    N = len(x)
+    M = len(y)
+    U = UX * N + UY * M
+    T = U / (N * M * (N + M)) - (4.0 * N * M - 1.0) / (6.0 * (M + N))
+    return T
+
+def GetPValues(data, subSampleSize):
+    result = []
+    sample = []   
+    for K in range(100):
+        sample.clear()
+        Data = []
+        for i in range(len(data)):
+            Data.append(data[i])
+        random.shuffle(Data)
+        N = subSampleSize
+        limit = N
+        for i in range(N):
+            pos = np.random.randint(0, limit)
+            sample.append(Data[pos])
+            Data.remove(Data[pos])
+        cvm = CVM_T(sample, Data)
+        result.append(cvm)   
+    return result
+
+def GetProb(data, sample):
+    pValues = GetPValues(data, len(sample))
+    pValues.sort()
+    cvm = CVM_T(data, sample)
+    counter = 0
+    for n in reversed(range(0, len(pValues) - 1)):
+        if (cvm > pValues[n]): break
+        counter += 1
+    return counter / 100.0
+
 #########################################################
 # code execution
 #########################################################
@@ -257,7 +313,7 @@ x2 = examples['x2'].numpy()
 samples = prediction_distribution.sample(model_sample_size)
 
 mean_median_dist = 0.0
-print("The test sample: #, x0, x1, x2, y, mean_model, std_model, mean_MC, std_MC")
+print("The test sample: #, x0, x1, x2, y, mean_model, std_model, mean_MC, std_MC, prob")
 MM = []
 MSTD = []
 MCM = []
@@ -268,9 +324,6 @@ for idx in range(validation_size):
     MSTD.append(model_stdv[idx])
     MCM.append(np.mean(arr_monte_carlo[idx]))
     MCSTD.append(np.std(arr_monte_carlo[idx]))
-    printed_data = f"{idx + 1}, {x0[idx]}, {x1[idx]}, {x2[idx]}, {targets[idx]}, \t {round(model_mean[idx], 2)}, "
-    printed_data += f"{round(model_stdv[idx], 2)}, {round(np.mean(arr_monte_carlo[idx]), 2)}, {round(np.std(arr_monte_carlo[idx]), 2)}"
-    print(printed_data)
     mediansX = []
     mediansY = []
     medianSplit(arr_monte_carlo[idx], 5, mediansX)
@@ -278,13 +331,13 @@ for idx in range(validation_size):
     mediansX.sort()
     mediansY.sort()
     mean_median_dist += relativeDistance(mediansX, mediansY)
-    res = stats.cramervonmises_2samp(arr_monte_carlo[idx], samples[:, idx].numpy())
-    if (res.pvalue > 0.05): passedKVM += 1
-
+    prob = GetProb(arr_monte_carlo[idx], samples[:, idx].numpy())
+    if prob >= 0.05: passedKVM += 1
+    print(f"{idx + 1}, {x0[idx]}, {x1[idx]}, {x2[idx]}, {targets[idx]}, \t {round(model_mean[idx], 2)}, {round(model_stdv[idx], 2)}, {round(np.mean(arr_monte_carlo[idx]), 2)}, {round(np.std(arr_monte_carlo[idx]), 2)}, {prob}")
 
 mean_median_dist /= validation_size
 print(f"The accuracy metric - average relative median distance = {mean_median_dist}")
 print(f"Relative distance for means {relativeDistance(MM, MCM)}")
 print(f"Relative distance for stds  {relativeDistance(MSTD, MCSTD)}")
-print(f"Passed Kramer fon Mises tests {passedKVM} from {validation_size}")
+print(f"Passed Kramer von Mises tests {passedKVM} from {validation_size}")
   
