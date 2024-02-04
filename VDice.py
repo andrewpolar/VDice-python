@@ -34,8 +34,8 @@ hidden_units = [8, 8]
 learning_rate = 0.001
 batch_size = 256
 num_epochs = 1000
-model_sample_size = 50
-monte_carlo_sample_size = 4000
+model_sample_size = 49
+monte_carlo_sample_size = 4096
 min_dice = 1
 max_dice = 11 #must be greater by 1 than expected maximum
 
@@ -229,7 +229,7 @@ def medianSplit(x, depth, medians):
     medianSplit(right, depth-1, medians)
     return
 
-def CVM_T(x, y):
+def CVM_Statistic(x, y):
     all = []
     labels = []
     for i in range(len(x)): 
@@ -263,24 +263,18 @@ def GetPValues(data, subSampleSize):
     sample = []   
     for K in range(100):
         sample.clear()
-        Data = []
-        for i in range(len(data)):
-            Data.append(data[i])
-        random.shuffle(Data)
-        N = subSampleSize
-        limit = N
-        for i in range(N):
-            pos = np.random.randint(0, limit)
-            sample.append(Data[pos])
-            Data.remove(Data[pos])
-        cvm = CVM_T(sample, Data)
+        random.shuffle(data)
+        for i in range(subSampleSize):
+            pos = np.random.randint(0, len(data))
+            sample.append(data[pos])
+        cvm = CVM_Statistic(sample, data)
         result.append(cvm)   
     return result
 
 def GetProb(data, sample):
     pValues = GetPValues(data, len(sample))
     pValues.sort()
-    cvm = CVM_T(data, sample)
+    cvm = CVM_Statistic(data, sample)
     counter = 0
     for n in reversed(range(0, len(pValues) - 1)):
         if (cvm > pValues[n]): break
@@ -313,7 +307,7 @@ x2 = examples['x2'].numpy()
 samples = prediction_distribution.sample(model_sample_size)
 
 mean_median_dist = 0.0
-print("The test sample: #, x0, x1, x2, y, mean_model, std_model, mean_MC, std_MC, prob")
+print("The test sample: #, x0, x1, x2, y, mean_model, std_model, mean_MC, std_MC, pvalue")
 MM = []
 MSTD = []
 MCM = []
